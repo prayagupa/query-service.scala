@@ -5,9 +5,11 @@ import play.api.mvc._
 import play.api.libs.json._
 import play.api.libs.functional.syntax._
 import play.libs.Json._
+import reactivemongo.api.commands.WriteResult
 import reactivemongo.bson._
 import service.BeardService
 import play.api.libs.concurrent.Execution.Implicits.defaultContext
+import service.mongo.MongoResponse
 
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
@@ -23,10 +25,10 @@ class BeardController extends Controller {
     Ok(views.html.index("dream.explore.die"))
   }
 
-  implicit val reader = (__ \ 'query)
-                          .read[String]
+  def query = Action.async(parse.json) { request =>
 
-  def query = Action.async { request =>
+    implicit
+    val queryReader = (__ \ 'query).read[String]
 
     implicit
     object ImplicitDocumentReader extends BSONReader[BSONValue, String] {
@@ -40,52 +42,44 @@ class BeardController extends Controller {
         }
     }
 
-    var requestedQuery : Option[JsValue] = Option.empty
+    val queryStringResult : JsResult[String] = request.body.validate(queryReader)
+    val queryString = queryStringResult.get
+    var queryType = queryString
+    var actualQuery = ""
+    if(queryString.contains('(')) {
+      queryType = queryString.substring(0, queryString.indexOf('('))
+      actualQuery = queryString.substring(queryString.indexOf('(') + 1, queryString.lastIndexOf(')'))
+    }
 
-    request.body.asJson.foreach(lookForQuery => {
-      requestedQuery = (lookForQuery \ "query").toOption
-    })
+    val mongoResponse : MongoResponse = beardService.query(queryType, actualQuery)
 
-    val result : Future[List[BSONDocument]] = beardService.query(requestedQuery.get.toString())
+    if (queryType.eq("find")) {
+      val result = mongoResponse.result.asInstanceOf[Future[List[BSONDocument]]]
 
-//    if(requestedQuery.isDefined) {
-//
-//      val result : Future[List[BSONDocument]] = beardService.query(requestedQuery.get.toString())
-//
-//      val listBuffer = new ListBuffer[Map[String, Any]]
-//      result.onComplete {
-//        case Success(value : List[BSONDocument]) => {
-//          value.foreach(document => {
-//            println(document.get("type"))
-//            Ok(document.get("type").get.toString)
-//          })
-//        }
-//        case Failure(exception) => println(exception)
-//      }
-//
-//      Ok(listBuffer.size+"")
-//    } else {
-//      BadRequest(s"Missing parameter [query] ${asJson}")
-//    }
+      var listBuffer = new ListBuffer[mutable.Map[String, String]]
 
-    var listBuffer = new ListBuffer[mutable.Map[String, String]]
-
-    result.map(list => {
-      list.foreach(document => {
-        val map = mutable.Map[String, String]().empty
-        document.elements.foreach(element => {
-              map+= element._1 -> element._2.as[String] //as uses implicit reader
+      result.map(list => {
+        list.foreach(document => {
+          val map = mutable.Map[String, String]().empty
+          document.elements.foreach(element => {
+            map+= element._1 -> element._2.as[String] //as uses implicit reader
+          })
+          listBuffer+= map
         })
-        listBuffer+= map
+        val jsonString = com.codahale.jerkson.Json.generate(Map("result" -> listBuffer.toList))
+        Ok(jsonString)
       })
-      val jsonString = com.codahale.jerkson.Json.generate(Map("result" -> listBuffer.toList))
-      Ok(jsonString)
-    })
+    } else {
+      val result = mongoResponse.result.asInstanceOf[Future[WriteResult]]
+      result.map(writableResult => {
+        Ok(Json.obj("message" -> writableResult.message))
+      })
+    }
   }
 
   def intensiveComputation(): JsObject = {
-      Thread.sleep(Random.nextInt(500))
-        Json.obj("value" -> 88)
+      Thread.sleep(Random.nextInt(5000))
+        Json.obj("value" -> "beard")
   }
 
   def sayAsyncBeard = Action.async { request =>
@@ -97,12 +91,4 @@ class BeardController extends Controller {
     )
   }
 
-  def sayAsyncBeards = Action.async { request =>
-    val futureInt = Future {
-      intensiveComputation()
-    }
-    futureInt.map(result =>
-      Ok(result)
-    )
-  }
 }

@@ -2,6 +2,7 @@ package service
 
 import play.api.libs.json.JsObject
 import reactivemongo.bson.BSONDocument
+import service.mongo.{MongoResponse, Mongo, Query}
 
 import scala.concurrent.Future
 
@@ -12,9 +13,8 @@ import scala.concurrent.Future
 
 class BeardService {
 
-    val dbQuery : Query = new MongoQuery
+    val dbQuery : Query = new MongoFindQuery
 
-    def query(query : String) : Future[List[BSONDocument]] = {
-      dbQuery.find(query)
-    }
+    def query(queryType : String, query: String) : MongoResponse = {
+        Mongo.actions.get(queryType).get.queryDatabase(query)}
 }

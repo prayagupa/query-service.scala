@@ -1,11 +1,24 @@
 @(message: String)
 
+<style>
+    #query  {
+        white-space: pre; font-family: monospace; font-size:13px ; color : green
+    }
+
+    #result {
+        white-space: pre; font-family: monospace; font-size:13px ; color : blue
+    }
+
+</style>
+
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.3/jquery.min.js"> </script>
 
 <form id="queryForm">
+    Queryspace<br/>
     <textarea id="query" name="query" rows="20" cols="100"></textarea>
     <br/>
-    <input type="submit" />
+    <input type="submit" value="Execute"/>
+    <input id="format" type="button" value="Format"/>
 </form>
 
 <textarea id="result" name="result" rows="40" cols="100"></textarea>
@@ -13,6 +26,13 @@
 
 <script>
     $(document).ready(function(){
+    $("#format").click(function(){
+        var json = $("#query").val()
+        var newJson = JSON.stringify(json, null, 2)
+        $("#query").val('')
+        $("#query").val(newJson)
+    });
+
        console.log("dreams");
              $("#queryForm").submit(function(e) {
                 e.preventDefault();

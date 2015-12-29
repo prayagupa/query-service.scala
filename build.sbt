@@ -12,7 +12,8 @@ libraryDependencies ++= Seq(
   ws,
   specs2 % Test,
   "org.reactivemongo" %% "reactivemongo" % "0.11.9",
-  "com.cloudphysics" % "jerkson_2.10" % "0.6.3"
+  "com.cloudphysics" % "jerkson_2.10" % "0.6.3",
+  "com.fasterxml.jackson.core" % "jackson-core" % "2.6.4"
 )
 
 resolvers += "scalaz-bintray" at "http://dl.bintray.com/scalaz/releases"
