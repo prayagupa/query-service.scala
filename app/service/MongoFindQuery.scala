@@ -22,10 +22,10 @@ import scala.collection.JavaConverters._
 
 class MongoFindQuery extends Query {
   val DbName = "events-db"
-  val CollectionName = "EventStream"
+  val CollectionName = "Events"
 
   val driver = new MongoDriver
-  val connection = driver.connection(List("127.0.0.1:27018"))
+  val connection = driver.connection(List("127.0.0.1:27017"))
 
   override def queryDatabase(queryString: String): MongoResponse = {
     val db = connection(DbName)

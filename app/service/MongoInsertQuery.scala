@@ -14,6 +14,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import com.fasterxml.jackson.databind.ObjectMapper
 
 import scala.collection.JavaConverters._
+import scala.util.{Failure, Success}
 
 /**
  * Created by prayagupd
@@ -22,10 +23,13 @@ import scala.collection.JavaConverters._
 
 class MongoInsertQuery extends Query {
   val DbName = "events-db"
-  val CollectionName = "EventStream"
+  val CollectionName = "Events"
 
   val driver = new MongoDriver
-  val connection = driver.connection(List("127.0.0.1:27018"))
+
+  val DefaultMongoDbConnectionUrl: String = "localhost"
+
+  val connection = driver.connection(List(DefaultMongoDbConnectionUrl))
 
   override def queryDatabase(queryString: String): MongoResponse = {
     val db = connection(DbName)
@@ -43,4 +47,5 @@ class MongoInsertQuery extends Query {
 
     new MongoResponse(result = eventualWriteResult)
   }
+
 }

@@ -7,7 +7,7 @@ import play.api.libs.functional.syntax._
 import play.libs.Json._
 import reactivemongo.api.commands.WriteResult
 import reactivemongo.bson._
-import service.BeardService
+import service.{MongoInsertQuery, BeardService}
 import play.api.libs.concurrent.Execution.Implicits.defaultContext
 import service.mongo.MongoResponse
 
@@ -42,18 +42,18 @@ class BeardController extends Controller {
         }
     }
 
-    val queryStringResult : JsResult[String] = request.body.validate(queryReader)
+    val queryStringResult: JsResult[String] = request.body.validate(queryReader)
     val queryString = queryStringResult.get
     var queryType = queryString
     var actualQuery = ""
-    if(queryString.contains('(')) {
+    if (queryString.contains('(')) {
       queryType = queryString.substring(0, queryString.indexOf('('))
       actualQuery = queryString.substring(queryString.indexOf('(') + 1, queryString.lastIndexOf(')'))
     }
 
-    val mongoResponse : MongoResponse = beardService.query(queryType, actualQuery)
+    val mongoResponse: MongoResponse = beardService.query(queryType, actualQuery)
 
-    if (queryType.eq("find")) {
+    if (queryType.equals("find")) {
       val result = mongoResponse.result.asInstanceOf[Future[List[BSONDocument]]]
 
       var listBuffer = new ListBuffer[mutable.Map[String, String]]
@@ -62,24 +62,29 @@ class BeardController extends Controller {
         list.foreach(document => {
           val map = mutable.Map[String, String]().empty
           document.elements.foreach(element => {
-            map+= element._1 -> element._2.as[String] //as uses implicit reader
+            map += element._1 -> element._2.as[String] //as uses implicit reader
           })
-          listBuffer+= map
+          listBuffer += map
         })
         val jsonString = com.codahale.jerkson.Json.generate(Map("result" -> listBuffer.toList))
         Ok(jsonString)
-      })
+      }).recover { case e: Exception => Ok(Json.obj("result" -> e.getMessage))
+                   case _ => Ok(Json.obj("result" -> "God knows what is the error.")
+      ) }
     } else {
       val result = mongoResponse.result.asInstanceOf[Future[WriteResult]]
       result.map(writableResult => {
-        Ok(Json.obj("message" -> writableResult.message))
-      })
+        Ok(Json.obj("result" -> Json.obj("n" -> writableResult.n.toString,
+                                         "ok" -> writableResult.ok)))
+      }).recover {
+        case e: Exception => Ok(Json.obj("result" -> e.getMessage))
+        case _ => Ok(Json.obj("result" -> "Problem, Problem, Problem")) }
     }
   }
 
   def intensiveComputation(): JsObject = {
-      Thread.sleep(Random.nextInt(5000))
-        Json.obj("value" -> "beard")
+    Thread.sleep(Random.nextInt(5000))
+    Json.obj("value" -> "beard")
   }
 
   def sayAsyncBeard = Action.async { request =>
