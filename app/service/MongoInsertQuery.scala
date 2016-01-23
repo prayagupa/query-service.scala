@@ -1,19 +1,17 @@
 package service
 
-import reactivemongo.api.commands.WriteResult
+import com.mongodb.BasicDBObject
+import com.mongodb.casbah.Imports._
+import com.mongodb.casbah.TypeImports._
+import com.mongodb.casbah.commons.MongoDBObject
+import com.mongodb.casbah.{MongoCollection, MongoDB, MongoClient}
 import service.mongo.{MongoResponse, Query}
-
-import scala.concurrent.Future
-
-import play.api.libs.json._
-import reactivemongo.api.collections.bson.BSONCollection
-import reactivemongo.api.{Collection, MongoDriver}
-import reactivemongo.bson._
 import scala.concurrent.ExecutionContext.Implicits.global
 
 import com.fasterxml.jackson.databind.ObjectMapper
 
 import scala.collection.JavaConverters._
+import scala.concurrent.Future
 import scala.util.{Failure, Success}
 
 /**
@@ -25,27 +23,36 @@ class MongoInsertQuery extends Query {
   val DbName = "events-db"
   val CollectionName = "Events"
 
-  val driver = new MongoDriver
+  val connection = MongoClient("localhost", 27017)
 
-  val DefaultMongoDbConnectionUrl: String = "localhost"
+  def insert(queryString: String) : Future[WriteResult] = {
+    Future {
+      val db = getDatabase(connection)
+      val collection = getCollection(db)
 
-  val connection = driver.connection(List(DefaultMongoDbConnectionUrl))
+      val mapper = new ObjectMapper()
+      val queryMap = mapper.readValue(queryString, classOf[java.util.Map[String, Object]]).asScala
+      println(s"querying $queryMap")
+      val query = new BasicDBObject()
+      queryMap.foreach(entry => {
+        query.append(entry._1.toString , entry._2)
+      })
+      println(s"inserting ${query}")
+      val eventualWriteResult : WriteResult= collection.insert(query)
+      eventualWriteResult
+    }
+  }
 
   override def queryDatabase(queryString: String): MongoResponse = {
-    val db = connection(DbName)
-    val collection : BSONCollection = db(CollectionName)
-
-    val mapper = new ObjectMapper()
-    val queryMap = mapper.readValue(queryString, classOf[java.util.Map[String, Object]]).asScala
-
-    var query = BSONDocument()
-    queryMap.foreach(entry => {
-      query = BSONDocument(entry._1.toString -> entry._2.toString)
-    })
-    println(s"inserting ${BSONDocument.pretty(query)}")
-    val eventualWriteResult: Future[WriteResult] = collection.insert(query)
-
+    val eventualWriteResult = insert(queryString)
     new MongoResponse(result = eventualWriteResult)
   }
 
+  def getDatabase(client: MongoClient) : MongoDB = {
+    client(DbName)
+  }
+
+  def getCollection(db: MongoDB) : MongoCollection = {
+    db(CollectionName)
+  }
 }

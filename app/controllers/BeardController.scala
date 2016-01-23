@@ -5,7 +5,7 @@ import play.api.mvc._
 import play.api.libs.json._
 import play.api.libs.functional.syntax._
 import play.libs.Json._
-import reactivemongo.api.commands.WriteResult
+import com.mongodb.casbah.TypeImports._
 import reactivemongo.bson._
 import service.{MongoInsertQuery, BeardService}
 import play.api.libs.concurrent.Execution.Implicits.defaultContext
@@ -44,12 +44,13 @@ class BeardController extends Controller {
 
     val queryStringResult: JsResult[String] = request.body.validate(queryReader)
     val queryString = queryStringResult.get
-    var queryType = queryString
-    var actualQuery = ""
-    if (queryString.contains('(')) {
-      queryType = queryString.substring(0, queryString.indexOf('('))
-      actualQuery = queryString.substring(queryString.indexOf('(') + 1, queryString.lastIndexOf(')'))
-    }
+    val queryType = "find"
+    val actualQuery = queryString
+
+//    if (queryString.contains('(')) {
+//      queryType = queryString.substring(0, queryString.indexOf('('))
+//      actualQuery = queryString.substring(queryString.indexOf('(') + 1, queryString.lastIndexOf(')'))
+//    }
 
     val mongoResponse: MongoResponse = beardService.query(queryType, actualQuery)
 
@@ -74,26 +75,18 @@ class BeardController extends Controller {
     } else {
       val result = mongoResponse.result.asInstanceOf[Future[WriteResult]]
       result.map(writableResult => {
-        Ok(Json.obj("result" -> Json.obj("n" -> writableResult.n.toString,
-                                         "ok" -> writableResult.ok)))
+        Ok(Json.obj("result" -> Json.obj("n" -> writableResult.getN,
+                                         "wasAcknowledged" -> writableResult.wasAcknowledged())))
       }).recover {
         case e: Exception => Ok(Json.obj("result" -> e.getMessage))
         case _ => Ok(Json.obj("result" -> "Problem, Problem, Problem")) }
     }
   }
 
-  def intensiveComputation(): JsObject = {
-    Thread.sleep(Random.nextInt(5000))
-    Json.obj("value" -> "beard")
-  }
-
   def sayAsyncBeard = Action.async { request =>
-    val futureInt = Future {
-      intensiveComputation()
-    }
+    val futureInt = beardService.process()
     futureInt.map(result =>
       Ok(result)
     )
   }
-
 }
