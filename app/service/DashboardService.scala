@@ -11,11 +11,10 @@ import reactivemongo.bson.BSONDocument
 
 class DashboardService {
   val DbName = "events-db"
-  val CollectionName = "EventStream"
 
   val connection = MongoClient("localhost", 27017)
 
-  def listDocuments(): List[DBObject] = {
+  def listDocuments(CollectionName : String): List[DBObject] = {
     val db = connection(DbName)
     val collection = db(CollectionName)
     val docs = collection.find(new BasicDBObject()).toList

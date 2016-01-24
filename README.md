@@ -8,8 +8,12 @@ activator run
 ```
 
 
+
+```
+curl -XGET localhost:9000/dashboard/EventStream
 ```
 
+```
 curl --header "Content-type: application/json"  --request POST --data '{"query": "find({\"type\":\"prayag\"})"}' http://localhost:9000/query
 
 {"result":[{"type":"Product_Received","_id":"56807942fe95e549e40095d6"}]}

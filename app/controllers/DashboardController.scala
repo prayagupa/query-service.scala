@@ -20,19 +20,19 @@ class DashboardController extends Controller {
   val service = new DashboardService
 
   implicit val defaultDbObjectToJsonWriter = new Writes[DBObject] {
+
     override def writes(givenDBObject: DBObject): JsValue = {
-      println("Am i ever called?, Yes I'm")
-      val map = mutable.Map[String, JsValue]().empty
+      //scalaz way of mathematical mapping
+      // http://stackoverflow.com/a/9140038/432903
 
-      givenDBObject.keySet().asScala.foreach(key => {
-        map.put(key, JsString(givenDBObject.get(key).toString))
-      })
-
+      val map = givenDBObject.keySet().asScala
+                             .map(key => key -> JsString(givenDBObject.get(key).toString))
+                             .toMap
       JsObject(map)
     }
   }
 
   def index = Action { request =>
-    Ok(Json.toJson(service.listDocuments()))
+    Ok(Json.toJson(service.listDocuments("EventStream")))
   }
 }
